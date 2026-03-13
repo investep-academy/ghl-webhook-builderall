@@ -23,7 +23,6 @@ async function postToFormsWithRetry(FORM_URL, options, retries = 3) {
       const text = await resp.text();
       lastBody = text;
 
-      // Google Forms suele responder 200 o 302
       if (resp.status === 200 || resp.status === 302) {
         return { resp, text };
       }
@@ -71,10 +70,11 @@ module.exports = async (req, res) => {
         })()
       : data;
 
-  // Helpers
   const pick = (...keys) => {
     for (const k of keys) {
-      if (parsed?.[k] !== undefined && parsed[k] !== null) return String(parsed[k]);
+      if (parsed?.[k] !== undefined && parsed[k] !== null) {
+        return String(parsed[k]);
+      }
     }
     return "";
   };
@@ -84,7 +84,7 @@ module.exports = async (req, res) => {
       .replace(/^\+/, "")
       .replace(/\s/g, "");
 
-  // Mapeo de payload -> campos del formulario
+  const date_confirmed = pick("date_confirmed", "dateConfirmed");
   const list_name = pick("list_name", "listName");
   const email = pick("email", "EMAIL");
   const fname = pick("fname", "first_name", "firstName", "FNAME");
@@ -97,13 +97,14 @@ module.exports = async (req, res) => {
 
   const formParams = new URLSearchParams();
 
-  // Nuevo formulario
-  formParams.append("entry.643366668", list_name);
-  formParams.append("entry.16713468", email);
-  formParams.append("entry.2111787251", fname);
-  formParams.append("entry.1305904896", apellido);
-  formParams.append("entry.1969015055", tuasesor);
-  formParams.append("entry.1553940646", asesores);
+  // Mapeo exacto del nuevo Google Form
+  formParams.append("entry.643366668", date_confirmed);
+  formParams.append("entry.16713468", list_name);
+  formParams.append("entry.2111787251", email);
+  formParams.append("entry.1305904896", fname);
+  formParams.append("entry.1969015055", apellido);
+  formParams.append("entry.1553940646", tuasesor);
+  formParams.append("entry.810381081", asesores);
   formParams.append("entry.2132332179", phoneprefixcodeid);
   formParams.append("entry.1385730406", phoneprefix);
   formParams.append("entry.956134344", phone);
@@ -111,6 +112,7 @@ module.exports = async (req, res) => {
   try {
     console.log("✅ Webhook recibido. Keys:", Object.keys(parsed || {}));
     console.log("🧾 Payload mapeado:", {
+      date_confirmed,
       list_name,
       email,
       fname,
@@ -141,6 +143,7 @@ module.exports = async (req, res) => {
       ok: true,
       formStatus: resp.status,
       sent: {
+        date_confirmed,
         list_name,
         email,
         fname,
@@ -155,7 +158,9 @@ module.exports = async (req, res) => {
   } catch (err) {
     console.error("❌ Falló envío a Forms tras reintentos:", err?.message || err);
     if (err?.lastStatus) console.error("❌ lastStatus:", err.lastStatus);
-    if (err?.lastBody) console.error("❌ lastBody(200):", (err.lastBody || "").slice(0, 200));
+    if (err?.lastBody) {
+      console.error("❌ lastBody(200):", (err.lastBody || "").slice(0, 200));
+    }
 
     return res.status(200).json({
       ok: false,
